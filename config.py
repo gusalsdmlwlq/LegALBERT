@@ -6,19 +6,30 @@ class Config:
     parser.add_argument("--data_path", default="data/bert", type=str)
     parser.add_argument("--vocab_path", default="assets/kor-vocab.txt", type=str)
     parser.add_argument("--config_path", default="assets/albert_config.txt", type=str)
+    parser.add_argument("--save_path", default=None, type=str)
 
     # training
+    parser.add_argument("--batch_size", default=32, type=int)
     parser.add_argument("--masking_rate", default=0.15, type=float)
     parser.add_argument("--masking_unk_rate", default=0.8, type=float)
     parser.add_argument("--masking_random_rate", default=0.1, type=float)
     parser.add_argument("--mask_token_id", default=4, type=int)
+    parser.add_argument("--seed", default=1, type=int)
+    parser.add_argument("--lr", default=3e-5, type=float)
+    parser.add_argument("--max_epochs", default=100, type=int)
+    parser.add_argument("--min_epochs", default=20, type=int)
+    parser.add_argument("--early_stop_count", default=5, type=int)
+
+    # for distributed training
+    parser.add_argument("--local_rank", default=0, type=int)
+    parser.add_argument("--num_gpus", default=1, type=int)
 
     # ALBERT config
     parser.add_argument("--pad_token_id", default=0, type=int)
     parser.add_argument("--bos_token_id", default=2, type=int)
     parser.add_argument("--eos_token_id", default=3, type=int)
-    parser.add_argument("--hidden_dropout_prob", default=0, type=int)
-    parser.add_argument("--attention_probs_dropout_prob", default=0, type=int)
+    parser.add_argument("--hidden_dropout_prob", default=0.1, type=int)
+    parser.add_argument("--attention_probs_dropout_prob", default=0.1, type=int)
     parser.add_argument("--classifier_dropout_prob", default=0.1, type=int)
     parser.add_argument("--embedding_size", default=128, type=int)
     parser.add_argument("--hidden_size", default=512, type=int)

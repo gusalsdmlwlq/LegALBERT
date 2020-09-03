@@ -1,9 +1,14 @@
 import os
 import random
-import numpy as np
 from copy import deepcopy
+import logging
+import time
+
+import numpy as np
 import torch
 from tokenizers import BertWordPieceTokenizer
+
+from config import Config
 
 
 class Reader:
@@ -51,8 +56,8 @@ class Reader:
                 
     def make_input(self, batch):
         batch_size = len(batch)
-        inputs = torch.zeros(batch_size, self.max_position_embeddings, dtype=torch.int64).cuda()
-        labels = torch.zeros(batch_size, self.max_position_embeddings, dtype=torch.int64).cuda()
+        inputs = torch.zeros(batch_size, self.max_position_embeddings, dtype=torch.int64)
+        labels = torch.zeros(batch_size, self.max_position_embeddings, dtype=torch.int64)
         max_length = 0
         for batch_idx in range(batch_size):
             tokens = batch[batch_idx]
@@ -69,10 +74,39 @@ class Reader:
                         masked_tokens[token_idx] = self.mask_token_id
                     elif prob < self.masking_unk_rate + self.masking_random_rate:  # change to random token
                         masked_tokens[token_idx] = np.random.randint(5, self.vocab_size)
-                    labels[batch_idx] = tokens[token_idx]  # label original token id
+                    labels[batch_idx, token_idx] = tokens[token_idx]  # label original token id
             inputs[batch_idx, :length] = torch.tensor(masked_tokens)
 
         inputs = inputs[:, :max_length]
         labels = labels[:, :max_length]
         
         return inputs, labels
+
+
+if __name__ == "__main__":
+    config = Config()
+    parser = config.parser
+    config = parser.parse_args()
+    
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    handler = logging.StreamHandler()
+    logger.addHandler(handler)
+
+    reader = Reader(config)
+    logger.info("Load data...")
+    start = time.time()
+    reader.load_data()
+    end = time.time()
+    logger.info("{} secs".format(end-start))
+
+    logger.info("Make batch...")
+    start = time.time()
+    iterator = reader.make_batch("dev")
+    end = time.time()
+    logger.info("{} secs".format(end-start))
+
+    for batch in iterator:
+        inputs, labels = reader.make_input(batch)
+        logger.info("")
+
