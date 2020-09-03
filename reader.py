@@ -29,9 +29,9 @@ class Reader:
         self.masking_random_rate = config.masking_random_rate
 
     def load_data(self):
-        train_data = open(os.path.join(self.data_path, "train_data.txt"), "r").read().split("\n")[:-1]
-        for row in train_data:
-            self.train_data.append(self.tokenizer.encode(row).ids)
+        # train_data = open(os.path.join(self.data_path, "train_data.txt"), "r").read().split("\n")[:-1]
+        # for row in train_data:
+        #     self.train_data.append(self.tokenizer.encode(row).ids)
         dev_data = open(os.path.join(self.data_path, "dev_data.txt"), "r").read().split("\n")[:-1]
         for row in dev_data:
             self.dev_data.append(self.tokenizer.encode(row).ids)

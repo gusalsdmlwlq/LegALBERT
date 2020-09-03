@@ -9,7 +9,7 @@ class Config:
     parser.add_argument("--save_path", default=None, type=str)
 
     # training
-    parser.add_argument("--batch_size", default=32, type=int)
+    parser.add_argument("--batch_size", default=16, type=int)
     parser.add_argument("--masking_rate", default=0.15, type=float)
     parser.add_argument("--masking_unk_rate", default=0.8, type=float)
     parser.add_argument("--masking_random_rate", default=0.1, type=float)

@@ -42,7 +42,6 @@ def distribute_data(batches, num_gpus):
 def init_process(local_rank, backend, config, albert_config, logger):
     os.environ['MASTER_ADDR'] = '127.0.0.1'
     os.environ['MASTER_PORT'] = '29500'
-    dist.init_process_group(backend, rank=local_rank, world_size=config.num_gpus)
     torch.cuda.set_device(local_rank)
 
     random.seed(config.seed)
@@ -65,13 +64,12 @@ def init_process(local_rank, backend, config, albert_config, logger):
     reader = Reader(config)
     start = time.time()
     logger.info("Loading data...")
-    reader.load_data("train")
+    reader.load_data()
     end = time.time()
     logger.info("Loaded. {} secs".format(end-start))
 
     model = AlbertForMaskedLM(albert_config).cuda()
     optimizer = Adam(model.parameters(), lr=config.lr)
-    model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank], output_device=local_rank)
 
     if config.save_path is not None:
         load(model, optimizer, config.save_path, local_rank)
@@ -92,10 +90,12 @@ def init_process(local_rank, backend, config, albert_config, logger):
         start = time.time()
 
         if local_rank == 0:
-            train(model, reader, optimizer, config, local_rank, writer)
+            train_test(model, reader, optimizer, config, local_rank, writer)
         else:
-            train(model, reader, optimizer, config, local_rank)
+            train_test(model, reader, optimizer, config, local_rank)
         
+        exit(0)
+
         end = time.time()
         logger.info("epoch: {}, {:.4f} secs".format(epoch+1, end-start))
 
@@ -147,18 +147,17 @@ def train(model, reader, optimizer, config, local_rank, writer=None):
             distributed_batch_size = math.ceil(batch_size / config.num_gpus)
 
             # distribute batches to each gpu
-            inputs = distribute_data(inputs, config.num_gpus)[local_rank].cuda().contiguous()
-            labels = distribute_data(labels, config.num_gpus)[local_rank].cuda().contiguous()
+            inputs = distribute_data(inputs, config.num_gpus)[local_rank]
+            labels = distribute_data(labels, config.num_gpus)[local_rank]
 
             model.zero_grad()
-            pad_mask = (inputs != reader.pad_token_id).cuda()
-            label_mask = (labels == reader.pad_token_id).cuda()
+            pad_mask = (inputs != reader.pad_token_id)
+            label_mask = (labels == reader.pad_token_id)
             label_mask.masked_fill_(label_mask, value=-100)  # use only masked tokens for loss
             loss, logits = model(inputs, masked_lm_labels=labels, attention_mask=pad_mask)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
             optimizer.step()
-            train.global_step += 1
 
             if local_rank == 0:
                 writer.add_scalar("Train/loss", loss.item(), train.global_step)
@@ -206,7 +205,7 @@ def validate(model, reader, config, local_rank):
             inputs = distribute_data(inputs, config.num_gpus)[local_rank].cuda().contiguous()
             labels = distribute_data(labels, config.num_gpus)[local_rank].cuda().contiguous()
 
-            pad_mask = (inputs != reader.pad_token_id).cuda()
+            pad_mask = (inputs != reader.pad_token_id)
             loss_, logits = model.forward(inputs, masked_lm_labels=labels, attention_mask=pad_mask)
 
             loss += loss_ * distributed_batch_size
@@ -219,8 +218,6 @@ def validate(model, reader, config, local_rank):
             del loss_, logits
             torch.cuda.empty_cache()
 
-    dist.all_reduce(loss)
-    loss = loss / config.num_gpus
     val_loss = loss.item() / batch_count
 
     del loss
@@ -232,14 +229,14 @@ def validate(model, reader, config, local_rank):
 
 def save(model, optimizer, save_path):
     checkpoint = {
-        "model": model.module.state_dict(),
+        "model": model.state_dict(),
         "optimizer": optimizer.state_dict()
     }
     torch.save(checkpoint, save_path)
 
 def load(model, optimizer, save_path, local_rank):
     checkpoint = torch.load(save_path, map_location = lambda storage, loc: storage.cuda(local_rank))
-    model.module.load_state_dict(checkpoint["model"])
+    model.load_state_dict(checkpoint["model"])
     optimizer.load_state_dict(checkpoint["optimizer"])
 
 if __name__ == "__main__":
