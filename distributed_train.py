@@ -65,11 +65,12 @@ def init_process(local_rank, backend, config, albert_config, logger):
     reader = Reader(config)
     start = time.time()
     logger.info("Loading data...")
-    reader.load_data("train")
+    reader.load_data()
     end = time.time()
     logger.info("Loaded. {} secs".format(end-start))
 
     model = AlbertForMaskedLM(albert_config).cuda()
+    model.albert.pooler.requires_grad_(False)  # pooled output is not used for pretraining(MLM)
     optimizer = Adam(model.parameters(), lr=config.lr)
     model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[local_rank], output_device=local_rank)
 
@@ -86,6 +87,8 @@ def init_process(local_rank, backend, config, albert_config, logger):
     logger.info("Validate...")
     loss = validate(model, reader, config, local_rank)
     logger.info("loss: {:.4f}".format(loss))
+
+    model.train()
 
     for epoch in range(config.max_epochs):
         logger.info("Train...")
@@ -282,4 +285,12 @@ if __name__ == "__main__":
     stream_handler = logging.StreamHandler()
     logger.addHandler(stream_handler)
 
-    init_process(0, "gloo", config, albert_config, logger)
+    processes = []
+
+    for local_rank in range(0, config.num_gpus):
+        process = Process(target=init_process, args=(local_rank, "gloo", config, albert_config, logger))
+        process.start()
+        processes.append(process)
+    
+    for process in processes:
+        process.join()

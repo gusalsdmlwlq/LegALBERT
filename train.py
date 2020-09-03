@@ -81,9 +81,9 @@ def init_process(local_rank, backend, config, albert_config, logger):
     min_loss = 1e+10
     early_stop_count = config.early_stop_count
 
-    logger.info("Validate...")
-    loss = validate(model, reader, config, local_rank)
-    logger.info("loss: {:.4f}".format(loss))
+    # logger.info("Validate...")
+    # loss = validate(model, reader, config, local_rank)
+    # logger.info("loss: {:.4f}".format(loss))
 
     for epoch in range(config.max_epochs):
         logger.info("Train...")
@@ -130,6 +130,18 @@ def init_process(local_rank, backend, config, albert_config, logger):
             early_stop_count -= 1
             logger.info("early stop count: {}".format(early_stop_count))
     logger.info("Training finished.")
+
+def train_test(model, reader, optimizer, config, local_rank, writer=None):
+    for i in tqdm(range(100), total=100, ncols=150):
+        model.zero_grad()
+        inputs = torch.randint(0, 30000, size=(config.batch_size, 512), dtype=torch.int64).cuda()
+        labels = torch.randint(0, 30000, size=(config.batch_size, 512), dtype=torch.int64).cuda()
+        pad_mask = torch.ones(config.batch_size, 512, dtype=torch.bool).cuda()
+        loss, logits = model(inputs, masked_lm_labels=labels, attention_mask=pad_mask)
+        loss.backward()
+        optimizer.step()
+        del loss, logits
+        torch.cuda.empty_cache()
 
 def train(model, reader, optimizer, config, local_rank, writer=None):
     iterator = reader.make_batch("train")
