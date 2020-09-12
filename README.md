@@ -1,4 +1,17 @@
-# LegalBERT
+# LegALBERT
+
+### 모델
+
+한국어 ALBERT 경량화 모델
+
+```
+embedding size: 128
+hidden size: 512
+max input length: 512
+vocab size: 30100
+number of layers: 8
+number of attention heads: 8
+```
 
 ### 학습 데이터
 
@@ -13,3 +26,10 @@
 * 총 **442M sub words**
   * Huggingface의 BertWordPieceTokenizer 사용
 
+### 학습
+
+Nvidia 2080ti 8장으로 약 9일간 학습
+
+![training loss](./images/train_loss.png)
+
+학습 계속 진행중
