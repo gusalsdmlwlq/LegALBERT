@@ -31,5 +31,3 @@ number of attention heads: 8
 Nvidia 2080ti 8장으로 약 9일간 학습
 
 ![training loss](./images/train_loss.png)
-
-학습 계속 진행중
